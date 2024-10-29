@@ -37,7 +37,7 @@ function getChainConfig(chain: keyof typeof chainIds): NetworkUserConfig {
       jsonRpcUrl = "https://" + chain + ".g.alchemy.com/v2/" + alchemyApiKey;
       break;
     case "night-testnet":
-      jsonRpcUrl = "https://rpc-night-testnet-brk51d2fuk.t.conduit.xyz";
+      jsonRpcUrl = process.env.NIGHT_TESTNET_RPC ?? "";
       break;
     default:
       jsonRpcUrl = "";
@@ -129,8 +129,8 @@ const config: HardhatUserConfig = {
         network: "night-testnet",
         chainId: chainIds["night-testnet"],
         urls: {
-          apiURL: "https://explorer-night-testnet-brk51d2fuk.t.conduit.xyz/api",
-          browserURL: "https://explorer-night-testnet-brk51d2fuk.t.conduit.xyz",
+          apiURL: `${process.env.NIGHT_TESTNET_EXPLORER}/api`,
+          browserURL: process.env.NIGHT_TESTNET_EXPLORER ?? "",
         },
       },
     ],

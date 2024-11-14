@@ -20,7 +20,6 @@ const deployVerifyingPaymaster: DeployFunction = async function (hre: HardhatRun
     from: deployerAddress,
     args: [entryPoint07Address, initialVerifier],
     log: true,
-    deterministicDeployment: process.env.SALT ?? true,
     gasLimit: 6e6,
   });
 

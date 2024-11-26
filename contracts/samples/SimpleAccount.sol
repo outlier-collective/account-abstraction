@@ -23,8 +23,8 @@ import "./callback/TokenCallbackHandler.sol";
 contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initializable, IERC1271 {
     using ECDSA for bytes32;
 
-    bytes4 internal constant ERC1271_MAGIC_VALUE_FAILED = 0xffffffff;
     bytes4 internal constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
+    bytes4 internal constant ERC1271_MAGIC_VALUE_FAILED = 0xffffffff;
 
     address public owner;
 

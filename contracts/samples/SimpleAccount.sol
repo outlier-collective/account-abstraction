@@ -9,17 +9,23 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import "../core/BaseAccount.sol";
 import "../core/Helpers.sol";
 import "./callback/TokenCallbackHandler.sol";
 
 /**
-  * minimal account.
-  *  this is sample minimal account.
-  *  has execute, eth handling methods
-  *  has a single signer that can send requests through the entryPoint.
-  */
-contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initializable {
+ * minimal account.
+ *  this is sample minimal account.
+ *  has execute, eth handling methods
+ *  has a single signer that can send requests through the entryPoint.
+ */
+contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, Initializable, IERC1271 {
+    using ECDSA for bytes32;
+
+    bytes4 internal constant ERC1271_MAGIC_VALUE_FAILED = 0xffffffff;
+    bytes4 internal constant ERC1271_MAGIC_VALUE = 0x1626ba7e;
+
     address public owner;
 
     IEntryPoint private immutable _entryPoint;
@@ -69,7 +75,10 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
      */
     function executeBatch(address[] calldata dest, uint256[] calldata value, bytes[] calldata func) external {
         _requireFromEntryPointOrOwner();
-        require(dest.length == func.length && (value.length == 0 || value.length == func.length), "wrong array lengths");
+        require(
+            dest.length == func.length && (value.length == 0 || value.length == func.length),
+            "wrong array lengths"
+        );
         if (value.length == 0) {
             for (uint256 i = 0; i < dest.length; i++) {
                 _call(dest[i], 0, func[i]);
@@ -84,8 +93,8 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
     /**
      * @dev The _entryPoint member is immutable, to reduce gas consumption.  To upgrade EntryPoint,
      * a new implementation of SimpleAccount must be deployed with the new EntryPoint address, then upgrading
-      * the implementation by calling `upgradeTo()`
-      * @param anOwner the owner (signer) of this account
+     * the implementation by calling `upgradeTo()`
+     * @param anOwner the owner (signer) of this account
      */
     function initialize(address anOwner) public virtual initializer {
         _initialize(anOwner);
@@ -102,21 +111,33 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
     }
 
     /// implement template method of BaseAccount
-    function _validateSignature(PackedUserOperation calldata userOp, bytes32 userOpHash)
-    internal override virtual returns (uint256 validationData) {
+    function _validateSignature(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash
+    ) internal virtual override returns (uint256 validationData) {
         bytes32 hash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
-        if (owner != ECDSA.recover(hash, userOp.signature))
-            return SIG_VALIDATION_FAILED;
+        if (owner != ECDSA.recover(hash, userOp.signature)) return SIG_VALIDATION_FAILED;
         return SIG_VALIDATION_SUCCESS;
     }
 
     function _call(address target, uint256 value, bytes memory data) internal {
-        (bool success, bytes memory result) = target.call{value: value}(data);
+        (bool success, bytes memory result) = target.call{ value: value }(data);
         if (!success) {
             assembly {
                 revert(add(result, 32), mload(result))
             }
         }
+    }
+
+    /**
+     * return whether the signature provided is valid for the provided data
+     */
+    function isValidSignature(bytes32 _hash, bytes memory _signature) public view override returns (bytes4) {
+        bytes32 messageHash = MessageHashUtils.toEthSignedMessageHash(_hash);
+        if (owner == ECDSA.recover(messageHash, _signature)) {
+            return ERC1271_MAGIC_VALUE;
+        }
+        return ERC1271_MAGIC_VALUE_FAILED;
     }
 
     /**
@@ -130,7 +151,7 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
      * deposit more funds for this account in the entryPoint
      */
     function addDeposit() public payable {
-        entryPoint().depositTo{value: msg.value}(address(this));
+        entryPoint().depositTo{ value: msg.value }(address(this));
     }
 
     /**
@@ -147,4 +168,3 @@ contract SimpleAccount is BaseAccount, TokenCallbackHandler, UUPSUpgradeable, In
         _onlyOwner();
     }
 }
-

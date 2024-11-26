@@ -30,6 +30,7 @@ const deploySimpleAccountFactory: DeployFunction = async function (hre: HardhatR
       await hre.run("verify:verify", {
         address: simpleAccountFactory.address,
         constructorArguments: [entryPoint07Address],
+        contract: "contracts/samples/SimpleAccountFactory.sol:SimpleAccountFactory",
       });
       console.log("SimpleAccountFactory verified on Etherscan");
     } catch (error) {
